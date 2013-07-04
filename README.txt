@@ -9,3 +9,6 @@ This project is hosted at https://github.com/doug65536/pxedhcp
 
 It definitely needs more testing. If you try it, please report any
 problems you encounter as issues on GitHub.
+
+Builds have only been tested on Linux. I will be adding Windows build
+support as soon as possible.
