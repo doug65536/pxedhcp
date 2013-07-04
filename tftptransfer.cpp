@@ -1,3 +1,18 @@
+/*
+ * This file is part of PXEDHCP.
+ * Copyright 2013 A. Douglas Gale
+ *
+ * PXEDHCP is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * PXEDHCP is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ */
+
 #include "tftptransfer.h"
 
 #include <QFile>
@@ -71,6 +86,7 @@ bool TFTPTransfer::StartTransfer(QUdpSocket *listener,
     if (!sock->bind(0))
     {
         emit VerboseEvent("bind(0) failed!");
+        delete this;
         return false;
     }
 
@@ -78,6 +94,7 @@ bool TFTPTransfer::StartTransfer(QUdpSocket *listener,
     {
         emit VerboseEvent("opcode is not RRQ!");
         SendErrorPacket(sock, addr, port, ILLEGALOPERATION, "Unsupported operation");
+        delete this;
         return false;
     }
 
@@ -92,13 +109,27 @@ bool TFTPTransfer::StartTransfer(QUdpSocket *listener,
     filename = TranslateFilename(serverRoot, requestFilename);
 
     file = new QFile(filename, this);
+    if (!file)
+    {
+        emit VerboseEvent("Out of memory");
+        delete this;
+        return false;
+    }
 
     if (!file->open(QFile::ReadOnly))
     {
         emit VerboseEvent(QString("File %1 not found: %2")
             .arg(filename).arg(file->errorString()));
         SendErrorFileNotFound(sock, addr, port);
-        delete file;
+        delete this;
+        return false;
+    }
+
+    // File must be world readable
+    if ((file->permissions() & QFile::ReadOther) == 0)
+    {
+        SendErrorPacket(sock, addr, port, ACCESSVIOLATION, "Permission denied");
+        delete this;
         return false;
     }
 
