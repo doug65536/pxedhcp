@@ -54,7 +54,11 @@ qt4_wrap_cpp(${project_name}_headers_moc ${${project_name}_headers})
 qt4_wrap_ui(${project_name}_forms_headers ${${project_name}_forms})
 qt4_add_resources(${project_name}_resources_rcc ${${project_name}_resources})
 
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -Wall -Wextra -pedantic")
+if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -W3 -Wextra -pedantic")
+elseif(MSVC)
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /Wall")
+endif()
 
 add_definitions(-DQT_DEBUG=1)
 
