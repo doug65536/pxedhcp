@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
 
     QStringList args = QCoreApplication::arguments();
     int opt = args.indexOf("--dir");
-    if (opt + 1 < args.size())
+    if (opt != -1 && opt + 1 < args.size())
         serverRoot = args[opt+1];
 
     signal(SIGINT, OnControlCSignal);
