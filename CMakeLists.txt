@@ -78,6 +78,45 @@ add_executable(${project_name}
 )
 target_link_libraries(${project_name} ${QT_LIBRARIES})
 
+#get_cmake_property(dumpall VARIABLES)
+#foreach(_dump ${dumpall})
+#	if(_dump STREQUAL "dumpall")
+#	else()
+#		set(dump_var ${${_dump}})
+#		message(STATUS "${_dump}=${dump_var}")
+#	endif()
+#endforeach()
+
+# Do goofy workaround where we copy the required DLL files to the binaries directory
+if(WIN32)
+	# Hack, use qmake.exe directory to find the DLLs
+	get_filename_component(qtmake_path ${QT_QMAKE_EXECUTABLE} PATH)
+
+	# Ugly as hell hack to copy DLLs from qt bin dir to binary dir
+	foreach(library_name "QtNetwork")
+		string(TOUPPER ${library_name} upper_library)
+		foreach(part ${QT_${upper_library}_LIBRARY})
+			set(lib_base_name)
+
+			string(REGEX MATCH  "/[^/\\.]+\\.lib$" lib_base_name ${part})
+			if(lib_base_name)
+				string(REGEX REPLACE "([^/.]+)\\.lib$" "\\1" lib_base_name ${part})
+				if(lib_base_name)
+					get_filename_component(dll_name ${lib_base_name} NAME_WE)
+					set(source_path "${qtmake_path}/${dll_name}.dll")
+					#get_target_property(target_path ${project_name} TARGET_FILE)
+					add_custom_command(
+						TARGET ${project_name}
+						POST_BUILD
+						COMMAND ${CMAKE_COMMAND} -E copy_if_different ${source_path} ${CMAKE_BINARY_DIR}/$<CONFIGURATION>
+					)
+					message(STATUS "Copy ${source_path} to ${target_path}")
+				endif()
+			endif()
+		endforeach()
+	endforeach()
+endif()
+
 install(TARGETS ${project_name}
     RUNTIME DESTINATION bin
     LIBRARY DESTINATION lib
