@@ -25,13 +25,9 @@ class PXEResponder : public QObject
 {
     Q_OBJECT
 
-    QHostAddress firstNic;
-    QString firstNicIpString;
-    QUdpSocket *listener;
-
 public:
-
     PXEResponder(QObject *parent = 0);
+    void init();
 
 public slots:
     void on_packet();
@@ -43,6 +39,20 @@ signals:
     void verboseEvent(const QString &);
     void errorEvent(const QString &);
     void warningEvent(const QString &);
+
+private:
+    struct Interface
+    {
+        QHostAddress addr;
+        QString addrString;
+        QUdpSocket *listener;
+
+        Interface() : listener(0) {}
+        ~Interface() { delete listener; }
+    };
+
+    typedef QList<Interface> InterfaceList;
+    InterfaceList interfaces;
 };
 
 struct DHCPPacketHeader
@@ -65,7 +75,6 @@ struct DHCPPacketHeader
 
     qint8 sname[64];
     qint8 file[128];
-    //quint8 dummy[192];
 
     quint32 magic;
 

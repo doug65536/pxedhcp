@@ -24,12 +24,22 @@ PXEService::PXEService(const QString &serverRoot, QObject *parent)
     responder = new PXEResponder(this);
     connect(responder, SIGNAL(verboseEvent(QString)), this, SLOT(on_dhcp_message(QString)));
     connect(responder, SIGNAL(warningEvent(QString)), this, SLOT(on_dhcp_message(QString)));
+    connect(responder, SIGNAL(errorEvent(QString)), this, SLOT(on_dhcp_message(QString)));
 
     tftpServer = new TFTPServer(serverRoot, this);
-    connect(tftpServer, SIGNAL(VerboseEvent(QString)), this, SLOT(on_dhcp_message(QString)));
+    connect(tftpServer, SIGNAL(verboseEvent(QString)), this, SLOT(on_dhcp_message(QString)));
+    connect(tftpServer, SIGNAL(warningEvent(QString)), this, SLOT(on_dhcp_message(QString)));
+    connect(tftpServer, SIGNAL(errorEvent(QString)), this, SLOT(on_dhcp_message(QString)));
+}
+
+void PXEService::init()
+{
+    responder->init();
+    tftpServer->init();
 }
 
 void PXEService::on_dhcp_message(const QString &msg) const
 {
-    std::cerr << msg.toAscii().data() << std::endl;
+    emit message(msg);
+//    std::cerr << msg.toLocal8Bit().data() << std::endl;
 }

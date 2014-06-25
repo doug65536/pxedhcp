@@ -35,8 +35,10 @@ class TFTPServer : public QObject
 
     QString serverRoot;
 
+
 public:
     explicit TFTPServer(const QString &serverRoot, QObject *parent = 0);
+    void init();
 
     typedef QPair<const char *,const char *> OptionPair;
     typedef QList<quint16> OptionOffsetList;
@@ -45,11 +47,14 @@ public:
     static const char *LookupOption(const OptionList &options, const char *option);
 
 signals:
-    void VerboseEvent(const QString &msg);
-    
+    void verboseEvent(const QString &msg);
+    void warningEvent(const QString &msg);
+    void errorEvent(const QString &msg);
+
 public slots:
     void OnPacketReceived();
     void OnTransferVerboseEvent(const QString &msg);
+    void OnTransferErrorEvent(const QString &msg);
 };
 
 #endif // TFTPSERVER_H

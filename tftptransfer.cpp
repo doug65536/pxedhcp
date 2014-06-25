@@ -44,12 +44,12 @@ void TFTPTransfer::SendErrorPacket(QUdpSocket *target,
     header = (BlockHeader*)packet.data();
     header->opcode = qToBigEndian((quint16)ERROR);
     header->block = qToBigEndian((quint16)errorCode);
-    memcpy((char*)(header+1), errorMessage.toAscii().constData(), errorMessage.length() + 1);
+    memcpy((char*)(header+1), errorMessage.toLocal8Bit().constData(), errorMessage.length() + 1);
 
     quint16 sentSize = target->writeDatagram(packet, address, port);
 
     if (sentSize != packet.size())
-        emit VerboseEvent("Outbound error packet truncated!");
+        emit ErrorEvent("Outbound error packet truncated!");
 }
 
 void TFTPTransfer::SendErrorFileNotFound(QUdpSocket *target,
@@ -74,7 +74,7 @@ QString TFTPTransfer::TranslateFilename(const QString &serverRoot, const char *f
     return result;
 }
 
-bool TFTPTransfer::StartTransfer(QUdpSocket *listener,
+bool TFTPTransfer::StartTransfer(QUdpSocket *,
     const QHostAddress &addr, quint16 port,
     quint16 opcode, const QString &serverRoot,
     const TFTPServer::OptionList &options)
@@ -85,14 +85,14 @@ bool TFTPTransfer::StartTransfer(QUdpSocket *listener,
 
     if (!sock->bind(0))
     {
-        emit VerboseEvent("bind(0) failed!");
+        emit ErrorEvent("bind(0) failed!");
         delete this;
         return false;
     }
 
     if (opcode != RRQ)
     {
-        emit VerboseEvent("opcode is not RRQ!");
+        emit ErrorEvent("opcode is not RRQ!");
         SendErrorPacket(sock, addr, port, ILLEGALOPERATION, "Unsupported operation");
         delete this;
         return false;
@@ -111,14 +111,14 @@ bool TFTPTransfer::StartTransfer(QUdpSocket *listener,
     file = new QFile(filename, this);
     if (!file)
     {
-        emit VerboseEvent("Out of memory");
+        emit ErrorEvent("Out of memory");
         delete this;
         return false;
     }
 
     if (!file->open(QFile::ReadOnly))
     {
-        emit VerboseEvent(QString("File %1 not found: %2")
+        emit ErrorEvent(QString("File %1 not found: %2")
             .arg(filename).arg(file->errorString()));
         SendErrorFileNotFound(sock, addr, port);
         delete this;
@@ -175,7 +175,7 @@ bool TFTPTransfer::StartTransfer(QUdpSocket *listener,
         sentSize = sock->writeDatagram(oack, addr, port);
 
         if (sentSize != oack.size())
-            emit VerboseEvent("Outbound OACK packet truncated!");
+            emit ErrorEvent("Outbound OACK packet truncated!");
     }
 
     clientAddr = addr;
@@ -210,7 +210,7 @@ bool TFTPTransfer::StartTransfer(QUdpSocket *listener,
             clientAddr, clientPort);
 
         if (sentSize != sendSize)
-            emit VerboseEvent("Outbound initial data packet truncated!");
+            emit ErrorEvent("Outbound initial data packet truncated!");
     }
 
     return true;
@@ -230,10 +230,12 @@ void TFTPTransfer::OnPacketReceived()
         size = sock->readDatagram(recvBuffer.data(), size,
             &sourceAddr, &sourcePort);
 
+        emit VerboseEvent(QString("Datagram received, size=%1").arg(size));
+
         // Drop packets from wrong client
         if (sourceAddr != clientAddr || sourcePort != clientPort)
         {
-            emit VerboseEvent("Dropped packet from wrong source");
+            emit ErrorEvent("Dropped packet from wrong source");
             continue;
         }
 
@@ -246,7 +248,7 @@ void TFTPTransfer::OnPacketReceived()
         // Drop packets that are not acknowledgements
         if (header.opcode != ACK)
         {
-            emit VerboseEvent(QString("Receive error ACK, opcode=%1, error=%2, message=%3")
+            emit ErrorEvent(QString("Receive error ACK, opcode=%1, error=%2, message=%3")
                 .arg(header.opcode)
                 .arg(header.block)
                 .arg((char*)(headerPtr+1)));
@@ -269,7 +271,7 @@ void TFTPTransfer::OnPacketReceived()
             emit VerboseEvent(QString("Retransmitted packet %1").arg(block));
 
             if (sentSize != sendSize)
-                emit VerboseEvent("Outbound retransmitted packet truncated!");
+                emit ErrorEvent("Outbound retransmitted packet truncated!");
 
             continue;
         }
@@ -277,7 +279,7 @@ void TFTPTransfer::OnPacketReceived()
         // Drop acknowledgements that are for wrong block
         if (header.block != block)
         {
-            emit VerboseEvent("Dropped acknowledement for unexpected block number");
+            emit VerboseEvent("Dropped acknowledgement for unexpected block number");
             continue;
         }
 
@@ -309,7 +311,7 @@ void TFTPTransfer::OnPacketReceived()
             clientAddr, clientPort);
 
         if (sentSize != sendSize)
-            emit VerboseEvent("Outbound DATA packet truncated!");
+            emit ErrorEvent("Outbound DATA packet truncated!");
     }
 }
 

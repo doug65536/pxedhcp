@@ -79,6 +79,7 @@ public:
 
 signals:
     void VerboseEvent(const QString &msg);
+    void ErrorEvent(const QString &msg);
     
 public slots:
     void OnPacketReceived();

@@ -13,21 +13,31 @@
  * GNU General Public License for more details.
  */
 
-#include <QtCore/QCoreApplication>
+#include <QtWidgets>    //Core/QCoreApplication>
 #include <QStringList>
 
 #include <signal.h>
 
 #include "pxeservice.h"
+#include "mainwindow.h"
 
 void OnControlCSignal(int)
 {
     QCoreApplication::quit();
 }
 
+//class QStringToStdout : public QObject
+//{
+//public slots:
+//    void message(QString const &msg) const
+//    {
+//        std::cout << msg << std::endl;
+//    }
+//};
+
 int main(int argc, char *argv[])
 {
-    QCoreApplication a(argc, argv);
+    QApplication a(argc, argv);
 
     QString serverRoot;
 
@@ -39,5 +49,14 @@ int main(int argc, char *argv[])
     signal(SIGINT, OnControlCSignal);
 
     PXEService s(serverRoot, &a);
+
+    MainWindow mw;
+    mw.show();
+
+    //QStringToStdout emitter;
+    s.connect(&s, SIGNAL(message(QString)), &mw, SLOT(message(QString)));
+
+    s.init();
+
     return a.exec();
 }

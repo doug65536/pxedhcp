@@ -29,9 +29,11 @@ class PXEService : public QObject
 
 public:
     explicit PXEService(const QString &serverRoot, QObject *parent = 0);
+    void init();
     
 signals:
-    
+    void message(const QString &message) const;
+
 public slots:
     void on_dhcp_message(const QString &) const;
 };
