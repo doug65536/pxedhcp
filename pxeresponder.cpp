@@ -463,13 +463,16 @@ void PXEResponder::on_packet()
 
                 // Copy client hardware address
                 dhcp->CopyHardwareAddrTo(offer);
+                
+                QByteArray str;
 
-                QByteArray addressString = interface.addrString.toLocal8Bit();
+                str = interface.addrString.toUtf8();
                 std::fill(std::begin(offer.sname), std::end(offer.sname), 0);
                 std::copy_n(str.constBegin(),
                             std::min(sizeof(offer.sname)-1,
                                      size_t(str.size())),
                             offer.sname);
+                str.clear();
 
                 std::fill(std::begin(offer.file), std::end(offer.file), 0);
                 std::copy_n(bootFileUtf8.begin(),
