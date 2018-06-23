@@ -44,7 +44,8 @@ public:
     typedef QList<quint16> OptionOffsetList;
     typedef QList<OptionPair> OptionList;
     
-    static const char *LookupOption(const OptionList &options, const char *option);
+    static const char *LookupOption(
+            const OptionList &options, const char *option);
 
 signals:
     void verboseEvent(const QString &msg);

@@ -21,15 +21,21 @@
 PXEService::PXEService(const QString &serverRoot, QObject *parent)
     : QObject(parent)
 {
-    responder = new PXEResponder(this);
-    connect(responder, SIGNAL(verboseEvent(QString)), this, SLOT(on_dhcp_message(QString)));
-    connect(responder, SIGNAL(warningEvent(QString)), this, SLOT(on_dhcp_message(QString)));
-    connect(responder, SIGNAL(errorEvent(QString)), this, SLOT(on_dhcp_message(QString)));
+    responder = new PXEResponder(bootFile, this);
+    connect(responder, SIGNAL(verboseEvent(QString)),
+            this, SLOT(on_dhcp_message(QString)));
+    connect(responder, SIGNAL(warningEvent(QString)),
+            this, SLOT(on_dhcp_message(QString)));
+    connect(responder, SIGNAL(errorEvent(QString)),
+            this, SLOT(on_dhcp_message(QString)));
 
     tftpServer = new TFTPServer(serverRoot, this);
-    connect(tftpServer, SIGNAL(verboseEvent(QString)), this, SLOT(on_dhcp_message(QString)));
-    connect(tftpServer, SIGNAL(warningEvent(QString)), this, SLOT(on_dhcp_message(QString)));
-    connect(tftpServer, SIGNAL(errorEvent(QString)), this, SLOT(on_dhcp_message(QString)));
+    connect(tftpServer, SIGNAL(verboseEvent(QString)),
+            this, SLOT(on_dhcp_message(QString)));
+    connect(tftpServer, SIGNAL(warningEvent(QString)),
+            this, SLOT(on_dhcp_message(QString)));
+    connect(tftpServer, SIGNAL(errorEvent(QString)),
+            this, SLOT(on_dhcp_message(QString)));
 }
 
 void PXEService::init()

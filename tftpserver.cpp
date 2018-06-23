@@ -62,7 +62,8 @@ void TFTPServer::OnPacketReceived()
     }
 }
 
-void TFTPServer::ParseListenerDatagram(int size, QHostAddress &addr, quint16 port)
+void TFTPServer::ParseListenerDatagram(
+        int size, QHostAddress &addr, quint16 port)
 {
     emit verboseEvent("TFTP: Parsing listener packet");
 
@@ -88,7 +89,8 @@ void TFTPServer::ParseListenerDatagram(int size, QHostAddress &addr, quint16 por
     {
         if (readBuffer[i] == (char)0)
         {
-            emit verboseEvent(QString("Option string: %1").arg(readBuffer.constData() + stringStart));
+            emit verboseEvent(QString("Option string: %1")
+                              .arg(readBuffer.constData() + stringStart));
             strings.append(stringStart);
             stringStart = i + 1;
         }
@@ -97,14 +99,17 @@ void TFTPServer::ParseListenerDatagram(int size, QHostAddress &addr, quint16 por
     // Filename and mode fields are required
     if (strings.size() < 2)
     {
-        emit errorEvent("Invalid TFTP request packet (required filename and mode missing)");
+        emit errorEvent("Invalid TFTP request packet"
+                        " (required filename and mode missing)");
         return;
     }
 
     // Parse filename, mode, and options
     OptionList options;
-    options.append(OptionPair("filename", readBuffer.constData() + strings[0]));
-    options.append(OptionPair("mode", readBuffer.constData() + strings[1]));
+    options.append(OptionPair("filename", readBuffer.constData() +
+                              strings[0]));
+    options.append(OptionPair("mode", readBuffer.constData() +
+                              strings[1]));
 
     // Iterate through optional extensions
     for (int i = 2; i < strings.size() - 1; i += 2)
@@ -116,19 +121,23 @@ void TFTPServer::ParseListenerDatagram(int size, QHostAddress &addr, quint16 por
     TFTPTransfer *transfer;
     transfer = new TFTPTransfer(this);
 
-    connect(transfer, SIGNAL(verboseEvent(QString)), this, SLOT(OnTransferVerboseEvent(QString)));
-    connect(transfer, SIGNAL(ErrorEvent(QString)), this, SLOT(OnTransferErrorEvent(QString)));
+    connect(transfer, SIGNAL(verboseEvent(QString)), this,
+            SLOT(OnTransferVerboseEvent(QString)));
+    connect(transfer, SIGNAL(ErrorEvent(QString)), this,
+            SLOT(OnTransferErrorEvent(QString)));
 
     emit verboseEvent("TFTP: Attempting to start transfer");
 
-    if (!transfer->StartTransfer(listener, addr, port, opcode, serverRoot, options))
+    if (!transfer->StartTransfer(listener, addr, port,
+                                 opcode, serverRoot, options))
     {
         emit errorEvent("Transfer failed to start");
         return;
     }
 }
 
-const char *TFTPServer::LookupOption(const OptionList &options, const char *option)
+const char *TFTPServer::LookupOption(
+        const OptionList &options, const char *option)
 {
     for (int i = 0; i < options.size(); ++i)
     {

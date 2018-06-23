@@ -34,10 +34,12 @@ quint32 DHCPPacket::TransactionId() const
 
 void DHCPPacket::CopyHardwareAddrTo(DHCPPacketHeader &dest) const
 {
-    std::copy(std::begin(header.chaddr), std::end(header.chaddr), std::begin(dest.chaddr));
+    std::copy(std::begin(header.chaddr), 
+              std::end(header.chaddr), std::begin(dest.chaddr));
 }
 
-DHCPPacket::OptionMap DHCPPacket::ParseOptions(quint8 *options, quint32 options_len)
+DHCPPacket::OptionMap DHCPPacket::ParseOptions(
+        quint8 *options, quint32 options_len)
 {
     OptionMap result;
 
@@ -182,8 +184,10 @@ QList<QString> DHCPPacket::PacketDetailDump() const
     r.append(header.htype == 1? "Using MAC addresses" : "Unknown address type");
     r.append(QString("Address length: %1").arg(header.hlen));
     r.append(QString("Hops: %1").arg(header.hops));
-    r.append(QString("Transaction id: 0x%1").arg((uint)header.xid, 8, 16, QChar('0')));
-    r.append(QString("Seconds since transaction start: %1").arg(qFromBigEndian((header.secs))));
+    r.append(QString("Transaction id: 0x%1")
+             .arg((uint)header.xid, 8, 16, QChar('0')));
+    r.append(QString("Seconds since transaction start: %1")
+             .arg(qFromBigEndian((header.secs))));
     r.append(QString("Flags: %1").arg(header.flags, 4, 16, QChar('0')));
     r.append(QString("Client IP address: 0x%1").arg(header.ciaddr, 8, 16, QChar('0')));
     r.append(QString("Your IP address: 0x%1").arg(header.yiaddr, 8, 16, QChar('0')));
@@ -290,7 +294,8 @@ void PXEResponder::on_packet()
 {
     DHCPPacket *dhcp = new DHCPPacket(this);
 
-    for (InterfaceList::iterator i = interfaces.begin(), e = interfaces.end(); i != e; ++i)
+    for (InterfaceList::iterator i = interfaces.begin(), 
+         e = interfaces.end(); i != e; ++i)
     {
         Interface& interface = *i;
         while (interface.listener->hasPendingDatagrams())
@@ -308,19 +313,23 @@ void PXEResponder::on_packet()
                 continue;
             }
 
-            emit verboseEvent(QString("From %1").arg(dhcp->GetSourceAddress().toString()));
+            emit verboseEvent(QString("From %1")
+                              .arg(dhcp->GetSourceAddress().toString()));
 
             QList<QString> detail = dhcp->PacketDetailDump();
-            for (QList<QString>::Iterator i = detail.begin(); i != detail.end(); ++i)
+            for (QList<QString>::Iterator i = detail.begin(); 
+                 i != detail.end(); ++i) {
                 emit verboseEvent(*i);
-
-            //emit verboseEvent(QString("Message type is %1").arg(dhcp->GetMessageType()));
+            }
 
             // FIXME: hard coded
             //const char bootfile[] = "pxelinux.0";
             //const char bootfile[] = "Boot/wdsnbp.com";
             const char bootfile[] = "pxeboot.com";
 
+            
+            //emit verboseEvent(QString("Message type is %1")
+            //                  .arg(dhcp->GetMessageType()));
 
             if (dhcp->IsDhcpDiscover())
             {
@@ -426,14 +435,17 @@ void PXEResponder::on_packet()
                 if (targetAddress.toIPv4Address() == 0)
                     targetAddress = QHostAddress::Broadcast;
 
-                auto bytesSent = interface.listener->writeDatagram(offer_options, targetAddress, 68);
+                auto bytesSent = interface.listener->writeDatagram(
+                            offer_options, targetAddress, 68);
                 if (bytesSent < 0)
-                    emit verboseEvent(QString("Sent DHCPOFFER (%1 bytes, error=%2)")
-                                      .arg(bytesSent)
-                                      .arg(interface.listener->errorString()));
+                    emit verboseEvent(
+                            QString("Sent DHCPOFFER (%1 bytes, error=%2)")
+                            .arg(bytesSent)
+                            .arg(interface.listener->errorString()));
                 else
-                    emit verboseEvent(QString("Sent DHCPOFFER (%1 bytes)")
-                                      .arg(bytesSent));
+                    emit verboseEvent(
+                            QString("Sent DHCPOFFER (%1 bytes)")
+                            .arg(bytesSent));
             }
             else if (dhcp->IsDhcpRequest())
             {
@@ -459,8 +471,9 @@ void PXEResponder::on_packet()
 
                 QByteArray addressString = interface.addrString.toLocal8Bit();
                 std::fill(std::begin(offer.sname), std::end(offer.sname), 0);
-                std::copy_n(addressString.constBegin(),
-                            std::min(sizeof(offer.sname)-1, size_t(addressString.size())),
+                std::copy_n(str.constBegin(),
+                            std::min(sizeof(offer.sname)-1,
+                                     size_t(str.size())),
                             offer.sname);
 
                 strcpy((char*)offer.file, bootfile);
@@ -501,19 +514,20 @@ void PXEResponder::on_packet()
                 //offer_options.append((selfaddr >>  8) & 0xFF);
                 //offer_options.append((selfaddr      ) & 0xFF);
                 offer_options.append(interface.addrString.length());
-                offer_options.append(interface.addrString.toLocal8Bit(),
-                                     interface.addrString.toLocal8Bit().length());
+                offer_options.append(interface.addrString.toLocal8Bit());
 
                 // Option #97, Client machine identifier
                 //const DHCPPacket::OptionData &client_id = dhcp->OptionContent(97);
                 //offer_options.append(97);
                 //offer_options.append(client_id.size());
-                //offer_options.append((const char *)client_id.data(), client_id.size());
+                //offer_options.append((const char *)client_id.data(),
+                //                     client_id.size());
 
                 // Option #61, Client machine identifier (too)
                 //offer_options.append(61);
                 //offer_options.append(client_id.size());
-                //offer_options.append((const char *)client_id.data(), client_id.size());
+                //offer_options.append((const char *)client_id.data(),
+                //                     client_id.size());
 
                 // Option #67, boot file
                 offer_options.append(67);
@@ -540,13 +554,17 @@ void PXEResponder::on_packet()
 
                 offer_options.append((char)255);
 
-                //auto bytesSent = listener->writeDatagram(offer_options, dhcp->GetSourceAddress(), dhcp->GetSourcePort());
-                auto bytesSent = interface.listener->writeDatagram(offer_options, dhcp->GetSourceAddress(), 68);
+                auto bytesSent = interface.listener->writeDatagram(
+                            offer_options, dhcp->GetSourceAddress(), 68);
 
                 if (bytesSent < 0)
-                    emit verboseEvent(QString("Sent DHCPACK (%1 bytes, error=%2)").arg(bytesSent).arg(interface.listener->errorString()));
+                    emit verboseEvent(QString("Sent DHCPACK"
+                                              " (%1 bytes, error=%2)")
+                                      .arg(bytesSent)
+                                      .arg(interface.listener->errorString()));
                 else
-                    emit verboseEvent(QString("Sent DHCPACK (%1 bytes)").arg(bytesSent));
+                    emit verboseEvent(QString("Sent DHCPACK (%1 bytes)")
+                                      .arg(bytesSent));
             }
             else
             {

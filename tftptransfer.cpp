@@ -44,7 +44,8 @@ void TFTPTransfer::SendErrorPacket(QUdpSocket *target,
     header = (BlockHeader*)packet.data();
     header->opcode = qToBigEndian((quint16)ERROR);
     header->block = qToBigEndian((quint16)errorCode);
-    memcpy((char*)(header+1), errorMessage.toLocal8Bit().constData(), errorMessage.length() + 1);
+    memcpy((char*)(header+1), errorMessage.toLocal8Bit().constData(), 
+           errorMessage.length() + 1);
 
     quint16 sentSize = target->writeDatagram(packet, address, port);
 
@@ -58,7 +59,8 @@ void TFTPTransfer::SendErrorFileNotFound(QUdpSocket *target,
     SendErrorPacket(target, addr, port, FILENOTFOUND, "File not found");
 }
 
-QString TFTPTransfer::TranslateFilename(const QString &serverRoot, const char *filename)
+QString TFTPTransfer::TranslateFilename(
+        const QString &serverRoot, const char *filename)
 {
     QString result(filename);
     result = result.replace(QChar('\\'), QChar('/'));
@@ -93,7 +95,8 @@ bool TFTPTransfer::StartTransfer(QUdpSocket *,
     if (opcode != RRQ)
     {
         emit ErrorEvent("opcode is not RRQ!");
-        SendErrorPacket(sock, addr, port, ILLEGALOPERATION, "Unsupported operation");
+        SendErrorPacket(sock, addr, port,
+                        ILLEGALOPERATION, "Unsupported operation");
         delete this;
         return false;
     }
