@@ -80,7 +80,7 @@ public:
             const QString &serverRoot, const char *filename);
 
 signals:
-    void VerboseEvent(const QString &msg);
+    void verboseEvent(const QString &msg);
     void ErrorEvent(const QString &msg);
     
 public slots:

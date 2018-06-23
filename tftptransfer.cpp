@@ -128,6 +128,8 @@ bool TFTPTransfer::StartTransfer(QUdpSocket *,
         return false;
     }
 
+    emit verboseEvent(QString("TFTP: File \"%1\" opened").arg(filename));
+
     // File must be world readable
     if ((file->permissions() & QFile::ReadOther) == 0)
     {
@@ -148,7 +150,7 @@ bool TFTPTransfer::StartTransfer(QUdpSocket *,
         qint64 fileSize;
         fileSize = file->size();
 
-        emit VerboseEvent(QString("Response file size=%1").arg(fileSize));
+        emit verboseEvent(QString("Response file size=%1").arg(fileSize));
 
         oack.append("tsize");
         oack.append((char)0);
@@ -162,7 +164,7 @@ bool TFTPTransfer::StartTransfer(QUdpSocket *,
     {
         blockSize = atoi(blockSizeOption);
 
-        emit VerboseEvent(QString("Setting blksize to %1").arg(blockSize));
+        emit verboseEvent(QString("Setting blksize to %1").arg(blockSize));
 
         oack.append("blksize");
         oack.append((char)0);
@@ -233,7 +235,7 @@ void TFTPTransfer::OnPacketReceived()
         size = sock->readDatagram(recvBuffer.data(), size,
             &sourceAddr, &sourcePort);
 
-        emit VerboseEvent(QString("Datagram received, size=%1").arg(size));
+        emit verboseEvent(QString("Datagram received, size=%1").arg(size));
 
         // Drop packets from wrong client
         if (sourceAddr != clientAddr || sourcePort != clientPort)
@@ -251,15 +253,16 @@ void TFTPTransfer::OnPacketReceived()
         // Drop packets that are not acknowledgements
         if (header.opcode != ACK)
         {
-            emit ErrorEvent(QString("Receive error ACK, opcode=%1, error=%2, message=%3")
-                .arg(header.opcode)
-                .arg(header.block)
-                .arg((char*)(headerPtr+1)));
+            emit ErrorEvent(QString("Receive error ACK,"
+                                    " opcode=%1, error=%2, message=%3")
+                            .arg(header.opcode)
+                            .arg(header.block)
+                            .arg((char*)(headerPtr+1)));
             return;
         }
 
         // Remove spam message
-        //emit VerboseEvent(QString("Received ACK for %1").arg(header.block));
+        //emit verboseEvent(QString("Received ACK for %1").arg(header.block));
 
         qint64 sentSize;
 
@@ -271,7 +274,7 @@ void TFTPTransfer::OnPacketReceived()
             sentSize = sock->writeDatagram(sendBuffer.data(), sendSize,
                 clientAddr, clientPort);
 
-            emit VerboseEvent(QString("Retransmitted packet %1").arg(block));
+            emit verboseEvent(QString("Retransmitted packet %1").arg(block));
 
             if (sentSize != sendSize)
                 emit ErrorEvent("Outbound retransmitted packet truncated!");
@@ -282,13 +285,14 @@ void TFTPTransfer::OnPacketReceived()
         // Drop acknowledgements that are for wrong block
         if (header.block != block)
         {
-            emit VerboseEvent("Dropped acknowledgement for unexpected block number");
+            emit verboseEvent("Dropped acknowledgement"
+                              " for unexpected block number");
             continue;
         }
 
         if (sendSize < sizeof(BlockHeader) + blockSize)
         {
-            emit VerboseEvent("Transfer completed");
+            emit verboseEvent("Transfer completed");
             // Last send was partial packet, we're done
             sock->close();
             delete this;
@@ -298,7 +302,7 @@ void TFTPTransfer::OnPacketReceived()
         ++block;
 
         // Removed spam event
-        //emit VerboseEvent(QString("Sending block %1").arg(block));
+        //emit verboseEvent(QString("Sending block %1").arg(block));
 
         // Prepare a new send packet
         headerPtr = (BlockHeader*)sendBuffer.data();
