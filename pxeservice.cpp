@@ -18,7 +18,8 @@
 #include <QSettings>
 #include <iostream>
 
-PXEService::PXEService(const QString &serverRoot, QObject *parent)
+PXEService::PXEService(const QString &serverRoot, const QString &bootFile,
+                       QObject *parent)
     : QObject(parent)
 {
     responder = new PXEResponder(bootFile, this);

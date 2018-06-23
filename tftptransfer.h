@@ -71,11 +71,13 @@ public:
     void SendErrorFileNotFound(QUdpSocket *target,
         const QHostAddress &addr, quint16 port);
 
-    bool StartTransfer(QUdpSocket *listener, const QHostAddress &addr, quint16 port,
-        quint16 opcode, const QString &serverRoot,
-        const TFTPServer::OptionList &options);
+    bool StartTransfer(
+            QUdpSocket *listener, const QHostAddress &addr, quint16 port,
+            quint16 opcode, const QString &serverRoot,
+            const TFTPServer::OptionList &options);
     
-    static QString TranslateFilename(const QString &serverRoot, const char *filename);
+    static QString TranslateFilename(
+            const QString &serverRoot, const char *filename);
 
 signals:
     void VerboseEvent(const QString &msg);

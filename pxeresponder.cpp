@@ -238,8 +238,9 @@ QList<QString> DHCPPacket::PacketDetailDump() const
     return r;
 }
 
-PXEResponder::PXEResponder(QObject *parent)
+PXEResponder::PXEResponder(const QString &bootFile, QObject *parent)
     : QObject(parent)
+    , bootFileUtf8(bootFile.toUtf8())
 {
 }
 
@@ -321,12 +322,6 @@ void PXEResponder::on_packet()
                  i != detail.end(); ++i) {
                 emit verboseEvent(*i);
             }
-
-            // FIXME: hard coded
-            //const char bootfile[] = "pxelinux.0";
-            //const char bootfile[] = "Boot/wdsnbp.com";
-            const char bootfile[] = "pxeboot.com";
-
             
             //emit verboseEvent(QString("Message type is %1")
             //                  .arg(dhcp->GetMessageType()));
@@ -394,8 +389,8 @@ void PXEResponder::on_packet()
 
                 // Option #67, boot file
                 offer_options.append(67);
-                offer_options.append(strlen(bootfile));
-                offer_options.append(bootfile, strlen(bootfile));
+                offer_options.append(bootFileUtf8.size());
+                offer_options.append(bootFileUtf8);
 
                 // Vendor options option
                 QByteArray vendor_options;
@@ -476,7 +471,11 @@ void PXEResponder::on_packet()
                                      size_t(str.size())),
                             offer.sname);
 
-                strcpy((char*)offer.file, bootfile);
+                std::fill(std::begin(offer.file), std::end(offer.file), 0);
+                std::copy_n(bootFileUtf8.begin(),
+                            std::min(sizeof(offer.file)-1,
+                                     size_t(bootFileUtf8.size())),
+                            offer.file);
 
                 // Build options
                 QByteArray offer_options;
@@ -531,8 +530,8 @@ void PXEResponder::on_packet()
 
                 // Option #67, boot file
                 offer_options.append(67);
-                offer_options.append(strlen(bootfile));
-                offer_options.append(bootfile, strlen(bootfile));
+                offer_options.append(bootFileUtf8.size());
+                offer_options.append(bootFileUtf8);
 
                 // Vendor options option
                 QByteArray vendor_options;

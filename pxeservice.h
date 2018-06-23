@@ -28,7 +28,8 @@ class PXEService : public QObject
     TFTPServer *tftpServer;
 
 public:
-    explicit PXEService(const QString &serverRoot, QObject *parent = 0);
+    PXEService(const QString &serverRoot, const QString &bootFile,
+               QObject *parent = 0);
     void init();
     
 signals:

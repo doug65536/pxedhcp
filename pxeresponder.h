@@ -26,7 +26,7 @@ class PXEResponder : public QObject
     Q_OBJECT
 
 public:
-    PXEResponder(QObject *parent = 0);
+    PXEResponder(const QString &bootFile, QObject *parent = 0);
     void init();
 
 public slots:
@@ -53,6 +53,8 @@ private:
 
     typedef QList<Interface> InterfaceList;
     InterfaceList interfaces;
+    
+    QByteArray bootFileUtf8;
 };
 
 struct DHCPPacketHeader

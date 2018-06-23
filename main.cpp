@@ -40,15 +40,20 @@ int main(int argc, char *argv[])
     QApplication a(argc, argv);
 
     QString serverRoot;
+    QString bootFile;
 
     QStringList args = QCoreApplication::arguments();
     int opt = args.indexOf("--dir");
     if (opt != -1 && opt + 1 < args.size())
         serverRoot = args[opt+1];
+    
+    opt = args.indexOf("--bootfile");
+    if (opt != -1 && opt + 1 < args.size())
+        bootFile = args[opt+1];
 
     signal(SIGINT, OnControlCSignal);
 
-    PXEService s(serverRoot, &a);
+    PXEService s(serverRoot, bootFile, &a);
 
     MainWindow mw;
     mw.show();
