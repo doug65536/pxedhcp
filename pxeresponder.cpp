@@ -273,7 +273,7 @@ void PXEResponder::init()
         interface.listener = new QUdpSocket(this);
 
         // We don't bind to an address because we want to receive broadcasts
-        if (!interface.listener->bind(67))
+        if (!interface.listener->bind(67, QUdpSocket::ShareAddress))
 //        if (!interface.listener->bind(4011))
         {
             emit errorEvent("Failed to bind DHCP listener, giving up");
