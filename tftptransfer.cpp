@@ -152,9 +152,9 @@ bool TFTPTransfer::StartTransfer(QUdpSocket *,
 
         emit verboseEvent(QString("Response file size=%1").arg(fileSize));
 
-        oack.append("tsize");
+        oack.append(u8"tsize");
         oack.append((char)0);
-        oack.append(QString("%1").arg(fileSize));
+        oack.append(QString("%1").arg(fileSize).toUtf8());
         oack.append((char)0);
     }
 
@@ -166,9 +166,9 @@ bool TFTPTransfer::StartTransfer(QUdpSocket *,
 
         emit verboseEvent(QString("Setting blksize to %1").arg(blockSize));
 
-        oack.append("blksize");
+        oack.append(u8"blksize");
         oack.append((char)0);
-        oack.append(QString("%1").arg(blockSize));
+        oack.append(QString("%1").arg(blockSize).toUtf8());
         oack.append((char)0);
     }
 
