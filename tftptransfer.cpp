@@ -88,7 +88,7 @@ bool TFTPTransfer::StartTransfer(QUdpSocket *,
     if (!sock->bind(0))
     {
         emit ErrorEvent("bind(0) failed!");
-        delete this;
+        deleteLater();
         return false;
     }
 
@@ -97,7 +97,7 @@ bool TFTPTransfer::StartTransfer(QUdpSocket *,
         emit ErrorEvent("opcode is not RRQ!");
         SendErrorPacket(sock, addr, port,
                         ILLEGALOPERATION, "Unsupported operation");
-        delete this;
+        deleteLater();
         return false;
     }
 
@@ -115,7 +115,7 @@ bool TFTPTransfer::StartTransfer(QUdpSocket *,
     if (!file)
     {
         emit ErrorEvent("Out of memory");
-        delete this;
+        deleteLater();
         return false;
     }
 
@@ -124,7 +124,7 @@ bool TFTPTransfer::StartTransfer(QUdpSocket *,
         emit ErrorEvent(QString("File %1 not found: %2")
             .arg(filename).arg(file->errorString()));
         SendErrorFileNotFound(sock, addr, port);
-        delete this;
+        deleteLater();
         return false;
     }
 
@@ -134,7 +134,7 @@ bool TFTPTransfer::StartTransfer(QUdpSocket *,
     if ((file->permissions() & QFile::ReadOther) == 0)
     {
         SendErrorPacket(sock, addr, port, ACCESSVIOLATION, "Permission denied");
-        delete this;
+        deleteLater();
         return false;
     }
 
@@ -258,6 +258,7 @@ void TFTPTransfer::OnPacketReceived()
                             .arg(header.opcode)
                             .arg(header.block)
                             .arg((char*)(headerPtr+1)));
+            deleteLater();
             return;
         }
 
@@ -295,8 +296,8 @@ void TFTPTransfer::OnPacketReceived()
             emit verboseEvent("Transfer completed");
             // Last send was partial packet, we're done
             sock->close();
-            delete this;
-            break;
+            deleteLater();
+            return;
         }
 
         ++block;
