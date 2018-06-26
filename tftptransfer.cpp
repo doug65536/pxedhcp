@@ -206,9 +206,9 @@ bool TFTPTransfer::StartTransfer(QUdpSocket *,
     // Remember packet size for possible retransmit
     sendSize = (quint16)(sizeof(BlockHeader) + readSize);
 
-    // Don't send initial packet if there was an OACK sent
+    // Send initial packet if there wasn't an OACK sent
     // (The client will send an ACK for block 0 to acknowledge OACK)
-    if (oack.size() > 2)
+    if (oack.size() <= 2)
     {
         // Send initial DATA datagram
         sentSize = sock->writeDatagram((char*)header, sendSize,
