@@ -291,6 +291,244 @@ void PXEResponder::init()
     emit errorEvent("Could not find suitable network interface");
 }
 
+void PXEResponder::sendDhcpOffer(DHCPPacket *dhcp, Interface& interface)
+{    
+    DHCPPacketHeader offer;
+    memset(&offer, 0, sizeof(offer));
+    offer.op = 2;
+    offer.htype = 1;
+    offer.hlen = 6;
+    offer.hops = 0;
+    offer.xid = dhcp->TransactionId();
+
+    // Proxy DHCP must set IP to 0.0.0.0
+    offer.ciaddr = 0;
+
+    // Next-server address
+    offer.siaddr = qToBigEndian(interface.addr.toIPv4Address());
+
+    // Copy client hardware address
+    dhcp->CopyHardwareAddrTo(offer);
+
+    // Build options
+    QByteArray offer_options;
+
+    offer_options.append((char*)&offer, sizeof(offer));
+
+    // Need:
+    // boot server list
+    // discovery control options (if provided)
+
+    offer_options.append(53);       // 53=DHCP Message Type
+    offer_options.append(1);
+    offer_options.append(2);        // 2=DHCPOFFER
+
+    // Option #54, server identifier
+    quint32 selfaddr = interface.addr.toIPv4Address();
+    offer_options.append(54);
+    offer_options.append(4);
+    offer_options.append((selfaddr >> 24) & 0xFF);
+    offer_options.append((selfaddr >> 16) & 0xFF);
+    offer_options.append((selfaddr >>  8) & 0xFF);
+    offer_options.append((selfaddr      ) & 0xFF);
+
+    // Option #97, Client machine identifier
+    //const DHCPPacket::OptionData &client_id = dhcp->OptionContent(97);
+    //offer_options.append(97);
+    //offer_options.append(client_id.size());
+    //offer_options.append((const char *)client_id.data(), client_id.size());
+
+    // Option #61, Client machine identifier (too)
+    //offer_options.append(61);
+    //offer_options.append(client_id.size());
+    //offer_options.append((const char *)client_id.data(), client_id.size());
+
+    // Option #60
+    offer_options.append(60);
+    offer_options.append(9);
+    offer_options.append("PXEClient", 9);
+
+    // Option #67, boot file
+    offer_options.append(67);
+    offer_options.append(bootFileUtf8.size());
+    offer_options.append(bootFileUtf8);
+
+    // Vendor options option
+    QByteArray vendor_options;
+
+    // Option #6, PXE_DISCOVERY_CONTROL
+    vendor_options.append(6);
+    vendor_options.append(1);
+    // bit 3: just use boot filename, no prompt/menu/discover
+    // bit 2: only use/accept servers in PXE_BOOT_SERVERS
+    // bit 1: disable multicast discovery
+    vendor_options.append((1 << 3) | /*(1 << 2) |*/ (1 << 1));
+    //vendor_options.append(7);  // use boot server list, broadcast discovery
+
+    // Vendor option #8, server list
+    vendor_options.append(8);
+    vendor_options.append(7);
+    vendor_options.append((char)0x80);  // type (hi)
+    vendor_options.append((char)0);  // type (lo)
+    vendor_options.append(1);           // 1 address
+    vendor_options.append((selfaddr >> 24) & 0xFF);
+    vendor_options.append((selfaddr >> 16) & 0xFF);
+    vendor_options.append((selfaddr >>  8) & 0xFF);
+    vendor_options.append((selfaddr      ) & 0xFF);
+
+    vendor_options.append((char)255);
+
+    offer_options.append(43);
+    offer_options.append(vendor_options.size());
+    offer_options.append(vendor_options);
+
+    offer_options.append((char)255);
+
+    //offer_options.append();
+
+    // Source address is probably 0.0.0.0,
+    // because the client hasn't had an address assigned yet!
+    auto targetAddress = dhcp->GetSourceAddress();
+    if (targetAddress.toIPv4Address() == 0)
+        targetAddress = QHostAddress::Broadcast;
+
+    auto bytesSent = interface.listener->writeDatagram(
+                offer_options, targetAddress, 68);
+    if (bytesSent < 0)
+        emit verboseEvent(
+                QString("Sent DHCPOFFER (%1 bytes, error=%2)")
+                .arg(bytesSent)
+                .arg(interface.listener->errorString()));
+    else
+        emit verboseEvent(
+                QString("Sent DHCPOFFER (%1 bytes)")
+                .arg(bytesSent));
+}
+
+void PXEResponder::sendDhcpAck(DHCPPacket *dhcp, Interface& interface)
+{
+    DHCPPacketHeader offer;
+    memset(&offer, 0, sizeof(offer));
+    offer.op = 2;
+    offer.htype = 1;
+    offer.hlen = 6;
+    offer.hops = 0;
+    offer.xid = dhcp->TransactionId();
+
+    // Proxy DHCP must set IP to 0.0.0.0
+    offer.ciaddr = 0;
+
+    // Next-server address
+    offer.siaddr = qToBigEndian(interface.addr.toIPv4Address());
+
+    // Copy client hardware address
+    dhcp->CopyHardwareAddrTo(offer);
+    
+    QByteArray str;
+
+    str = interface.addrString.toUtf8();
+    std::fill(std::begin(offer.sname), std::end(offer.sname), 0);
+    std::copy_n(str.constBegin(),
+                std::min(sizeof(offer.sname)-1,
+                         size_t(str.size())),
+                offer.sname);
+    str.clear();
+
+    std::fill(std::begin(offer.file), std::end(offer.file), 0);
+    std::copy_n(bootFileUtf8.begin(),
+                std::min(sizeof(offer.file)-1,
+                         size_t(bootFileUtf8.size())),
+                offer.file);
+
+    // Build options
+    QByteArray offer_options;
+
+    offer_options.append((char*)&offer, sizeof(offer));
+
+    // Option #53, message type
+    offer_options.append(53);       // 53=DHCP Message Type
+    offer_options.append(1);
+    offer_options.append(5);        // 5=DHCPACK
+
+    // Option #60
+    offer_options.append(60);
+    offer_options.append(9);
+    offer_options.append("PXEClient", 9);
+
+    // Need:
+    // boot server list
+    // discovery control options (if provided)
+
+    // Option #54, server identifier
+    quint32 selfaddr = interface.addr.toIPv4Address();
+    offer_options.append(54);
+    offer_options.append(4);
+    offer_options.append((char)((selfaddr >> 24) & 0xFF));
+    offer_options.append((char)((selfaddr >> 16) & 0xFF));
+    offer_options.append((char)((selfaddr >>  8) & 0xFF));
+    offer_options.append((char)((selfaddr      ) & 0xFF));
+
+    // Option #66, server name
+    offer_options.append(66);
+    //offer_options.append(4);
+    //offer_options.append((selfaddr >> 24) & 0xFF);
+    //offer_options.append((selfaddr >> 16) & 0xFF);
+    //offer_options.append((selfaddr >>  8) & 0xFF);
+    //offer_options.append((selfaddr      ) & 0xFF);
+    offer_options.append(interface.addrString.length());
+    offer_options.append(interface.addrString.toLocal8Bit());
+
+    // Option #97, Client machine identifier
+    //const DHCPPacket::OptionData &client_id = dhcp->OptionContent(97);
+    //offer_options.append(97);
+    //offer_options.append(client_id.size());
+    //offer_options.append((const char *)client_id.data(),
+    //                     client_id.size());
+
+    // Option #61, Client machine identifier (too)
+    //offer_options.append(61);
+    //offer_options.append(client_id.size());
+    //offer_options.append((const char *)client_id.data(),
+    //                     client_id.size());
+
+    // Option #67, boot file
+    offer_options.append(67);
+    offer_options.append(bootFileUtf8.size());
+    offer_options.append(bootFileUtf8);
+
+    // Vendor options option
+    QByteArray vendor_options;
+
+    vendor_options.append(6);
+    vendor_options.append(1);
+    // bit 3: just use boot filename, no prompt/menu/discover
+    // bit 2: only use/accept servers in PXE_BOOT_SERVERS
+    // bit 1: disable multicast discovery
+    vendor_options.append((1 << 3) | (0 << 2) | (1 << 1));
+    //vendor_options.append(7);  // use boot server list, broadcast discovery
+
+    vendor_options.append((char)255);
+
+    // Option #43, vendor options
+    offer_options.append(43);
+    offer_options.append(vendor_options.size());
+    offer_options.append(vendor_options);
+
+    offer_options.append((char)255);
+    
+    auto bytesSent = interface.listener->writeDatagram(
+                offer_options, dhcp->GetSourceAddress(), 68);
+
+    if (bytesSent < 0)
+        emit verboseEvent(QString("Sent DHCPACK"
+                                  " (%1 bytes, error=%2)")
+                          .arg(bytesSent)
+                          .arg(interface.listener->errorString()));
+    else
+        emit verboseEvent(QString("Sent DHCPACK (%1 bytes)")
+                          .arg(bytesSent));
+}
+
 void PXEResponder::on_packet()
 {
     DHCPPacket *dhcp = new DHCPPacket(this);
@@ -331,242 +569,15 @@ void PXEResponder::on_packet()
                 emit verboseEvent("Got discover");
 
                 // Send DHCPOFFER response
-
-                DHCPPacketHeader offer;
-                memset(&offer, 0, sizeof(offer));
-                offer.op = 2;
-                offer.htype = 1;
-                offer.hlen = 6;
-                offer.hops = 0;
-                offer.xid = dhcp->TransactionId();
-
-                // Proxy DHCP must set IP to 0.0.0.0
-                offer.ciaddr = 0;
-
-                // Next-server address
-                offer.siaddr = qToBigEndian(interface.addr.toIPv4Address());
-
-                // Copy client hardware address
-                dhcp->CopyHardwareAddrTo(offer);
-
-                // Build options
-                QByteArray offer_options;
-
-                offer_options.append((char*)&offer, sizeof(offer));
-
-                // Need:
-                // boot server list
-                // discovery control options (if provided)
-
-                offer_options.append(53);       // 53=DHCP Message Type
-                offer_options.append(1);
-                offer_options.append(2);        // 2=DHCPOFFER
-
-                // Option #54, server identifier
-                quint32 selfaddr = interface.addr.toIPv4Address();
-                offer_options.append(54);
-                offer_options.append(4);
-                offer_options.append((selfaddr >> 24) & 0xFF);
-                offer_options.append((selfaddr >> 16) & 0xFF);
-                offer_options.append((selfaddr >>  8) & 0xFF);
-                offer_options.append((selfaddr      ) & 0xFF);
-
-                // Option #97, Client machine identifier
-                //const DHCPPacket::OptionData &client_id = dhcp->OptionContent(97);
-                //offer_options.append(97);
-                //offer_options.append(client_id.size());
-                //offer_options.append((const char *)client_id.data(), client_id.size());
-
-                // Option #61, Client machine identifier (too)
-                //offer_options.append(61);
-                //offer_options.append(client_id.size());
-                //offer_options.append((const char *)client_id.data(), client_id.size());
-
-                // Option #60
-                offer_options.append(60);
-                offer_options.append(9);
-                offer_options.append("PXEClient", 9);
-
-                // Option #67, boot file
-                offer_options.append(67);
-                offer_options.append(bootFileUtf8.size());
-                offer_options.append(bootFileUtf8);
-
-                // Vendor options option
-                QByteArray vendor_options;
-
-                // Option #6, PXE_DISCOVERY_CONTROL
-                vendor_options.append(6);
-                vendor_options.append(1);
-                // bit 3: just use boot filename, no prompt/menu/discover
-                // bit 2: only use/accept servers in PXE_BOOT_SERVERS
-                // bit 1: disable multicast discovery
-                vendor_options.append((1 << 3) | /*(1 << 2) |*/ (1 << 1));
-                //vendor_options.append(7);  // use boot server list, broadcast discovery
-
-                // Vendor option #8, server list
-                vendor_options.append(8);
-                vendor_options.append(7);
-                vendor_options.append((char)0x80);  // type (hi)
-                vendor_options.append((char)0);  // type (lo)
-                vendor_options.append(1);           // 1 address
-                vendor_options.append((selfaddr >> 24) & 0xFF);
-                vendor_options.append((selfaddr >> 16) & 0xFF);
-                vendor_options.append((selfaddr >>  8) & 0xFF);
-                vendor_options.append((selfaddr      ) & 0xFF);
-
-                vendor_options.append((char)255);
-
-                offer_options.append(43);
-                offer_options.append(vendor_options.size());
-                offer_options.append(vendor_options);
-
-                offer_options.append((char)255);
-
-                //offer_options.append();
-
-                // Source address is probably 0.0.0.0, because the client hasn't had an address assigned yet!
-                auto targetAddress = dhcp->GetSourceAddress();
-                if (targetAddress.toIPv4Address() == 0)
-                    targetAddress = QHostAddress::Broadcast;
-
-                auto bytesSent = interface.listener->writeDatagram(
-                            offer_options, targetAddress, 68);
-                if (bytesSent < 0)
-                    emit verboseEvent(
-                            QString("Sent DHCPOFFER (%1 bytes, error=%2)")
-                            .arg(bytesSent)
-                            .arg(interface.listener->errorString()));
-                else
-                    emit verboseEvent(
-                            QString("Sent DHCPOFFER (%1 bytes)")
-                            .arg(bytesSent));
+                sendDhcpOffer(dhcp, interface);
             }
             else if (dhcp->IsDhcpRequest())
             {
                 // Send DHCPACK
                 emit verboseEvent("Got request!");
-
-                DHCPPacketHeader offer;
-                memset(&offer, 0, sizeof(offer));
-                offer.op = 2;
-                offer.htype = 1;
-                offer.hlen = 6;
-                offer.hops = 0;
-                offer.xid = dhcp->TransactionId();
-
-                // Proxy DHCP must set IP to 0.0.0.0
-                offer.ciaddr = 0;
-
-                // Next-server address
-                offer.siaddr = qToBigEndian(interface.addr.toIPv4Address());
-
-                // Copy client hardware address
-                dhcp->CopyHardwareAddrTo(offer);
                 
-                QByteArray str;
+                sendDhcpAck(dhcp, interface);
 
-                str = interface.addrString.toUtf8();
-                std::fill(std::begin(offer.sname), std::end(offer.sname), 0);
-                std::copy_n(str.constBegin(),
-                            std::min(sizeof(offer.sname)-1,
-                                     size_t(str.size())),
-                            offer.sname);
-                str.clear();
-
-                std::fill(std::begin(offer.file), std::end(offer.file), 0);
-                std::copy_n(bootFileUtf8.begin(),
-                            std::min(sizeof(offer.file)-1,
-                                     size_t(bootFileUtf8.size())),
-                            offer.file);
-
-                // Build options
-                QByteArray offer_options;
-
-                offer_options.append((char*)&offer, sizeof(offer));
-
-                // Option #53, message type
-                offer_options.append(53);       // 53=DHCP Message Type
-                offer_options.append(1);
-                offer_options.append(5);        // 5=DHCPACK
-
-                // Option #60
-                offer_options.append(60);
-                offer_options.append(9);
-                offer_options.append("PXEClient", 9);
-
-                // Need:
-                // boot server list
-                // discovery control options (if provided)
-
-                // Option #54, server identifier
-                quint32 selfaddr = interface.addr.toIPv4Address();
-                offer_options.append(54);
-                offer_options.append(4);
-                offer_options.append((char)((selfaddr >> 24) & 0xFF));
-                offer_options.append((char)((selfaddr >> 16) & 0xFF));
-                offer_options.append((char)((selfaddr >>  8) & 0xFF));
-                offer_options.append((char)((selfaddr      ) & 0xFF));
-
-                // Option #66, server name
-                offer_options.append(66);
-                //offer_options.append(4);
-                //offer_options.append((selfaddr >> 24) & 0xFF);
-                //offer_options.append((selfaddr >> 16) & 0xFF);
-                //offer_options.append((selfaddr >>  8) & 0xFF);
-                //offer_options.append((selfaddr      ) & 0xFF);
-                offer_options.append(interface.addrString.length());
-                offer_options.append(interface.addrString.toLocal8Bit());
-
-                // Option #97, Client machine identifier
-                //const DHCPPacket::OptionData &client_id = dhcp->OptionContent(97);
-                //offer_options.append(97);
-                //offer_options.append(client_id.size());
-                //offer_options.append((const char *)client_id.data(),
-                //                     client_id.size());
-
-                // Option #61, Client machine identifier (too)
-                //offer_options.append(61);
-                //offer_options.append(client_id.size());
-                //offer_options.append((const char *)client_id.data(),
-                //                     client_id.size());
-
-                // Option #67, boot file
-                offer_options.append(67);
-                offer_options.append(bootFileUtf8.size());
-                offer_options.append(bootFileUtf8);
-
-                // Vendor options option
-                QByteArray vendor_options;
-
-                vendor_options.append(6);
-                vendor_options.append(1);
-                // bit 3: just use boot filename, no prompt/menu/discover
-                // bit 2: only use/accept servers in PXE_BOOT_SERVERS
-                // bit 1: disable multicast discovery
-                vendor_options.append((1 << 3) | (0 << 2) | (1 << 1));
-                //vendor_options.append(7);  // use boot server list, broadcast discovery
-
-                vendor_options.append((char)255);
-
-                // Option #43, vendor options
-                offer_options.append(43);
-                offer_options.append(vendor_options.size());
-                offer_options.append(vendor_options);
-
-                offer_options.append((char)255);
-
-                auto bytesSent = interface.listener->writeDatagram(
-                            offer_options, dhcp->GetSourceAddress(), 68);
-
-                if (bytesSent < 0)
-                    emit verboseEvent(QString("Sent DHCPACK"
-                                              " (%1 bytes, error=%2)")
-                                      .arg(bytesSent)
-                                      .arg(interface.listener->errorString()));
-                else
-                    emit verboseEvent(QString("Sent DHCPACK (%1 bytes)")
-                                      .arg(bytesSent));
             }
             else
             {

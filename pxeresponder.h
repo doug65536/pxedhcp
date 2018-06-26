@@ -21,9 +21,13 @@
 #include <QSignalMapper>
 #include <QtNetwork/QNetworkInterface>
 
+class DHCPPacket;
+
 class PXEResponder : public QObject
 {
     Q_OBJECT
+    
+    class Interface;
 
 public:
     PXEResponder(const QString &bootFile, QObject *parent = 0);
@@ -41,6 +45,9 @@ signals:
     void warningEvent(const QString &);
 
 private:
+    void sendDhcpOffer(DHCPPacket *dhcp, Interface &interface);
+    void sendDhcpAck(DHCPPacket *dhcp, Interface& interface);
+    
     struct Interface
     {
         QHostAddress addr;
