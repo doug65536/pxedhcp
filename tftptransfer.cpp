@@ -176,6 +176,27 @@ bool TFTPTransfer::StartTransfer(QUdpSocket *,
         oack.append(QString("%1").arg(blockSize).toUtf8());
         oack.append((char)0);
     }
+    
+    const char *timeoutOption = TFTPServer::LookupOption(options, "timeout");
+    
+    if (timeoutOption)
+    {
+        retransmitInterval = (unsigned char)timeoutOption[0];
+        
+        // Clamp to valid range
+        if (retransmitInterval < 1)
+            retransmitInterval = 1;
+        if (retransmitInterval > 255)
+            retransmitInterval = 255;
+        
+        emit verboseEvent(QString("Setting timeout to %1 seconds")
+                          .arg(retransmitInterval));
+        
+        oack.append(u8"timeout");
+        oack.append((char)0);
+        oack.append((char)retransmitInterval);
+        oack.append((char)0);
+    }
 
     qint64 sentSize;
 
