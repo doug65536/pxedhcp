@@ -132,7 +132,6 @@ void TFTPServer::ParseListenerDatagram(
                                  opcode, serverRoot, options))
     {
         emit errorEvent("Transfer failed to start");
-        return;
     }
 }
 
