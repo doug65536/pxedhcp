@@ -16,6 +16,6 @@ MainWindow::~MainWindow()
 
 void MainWindow::message(const QString &msg) const
 {
-    ui->logList->addItem(msg);
+    //ui->logList->addItem(msg);
     qDebug() << msg;
 }
