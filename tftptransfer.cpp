@@ -31,7 +31,12 @@ TFTPTransfer::TFTPTransfer(QObject *parent)
     : QObject(parent)
     , sock(nullptr)
     , blockSize(512)
+    , retransmitTimer(new QTimer(this))
+    , retransmitInterval(1000)
 {
+    retransmitTimer->setSingleShot(true);
+    connect(retransmitTimer, SIGNAL(timeout()), 
+            this, SLOT(OnRetransmitTimer()));
 }
 
 void TFTPTransfer::SendErrorPacket(QUdpSocket *target,
@@ -258,6 +263,8 @@ void TFTPTransfer::OnPacketReceived()
                             .arg(header.opcode)
                             .arg(header.block)
                             .arg((char*)(headerPtr+1)));
+            sock->close();
+            retransmitTimer->stop();
             deleteLater();
             return;
         }
@@ -276,6 +283,8 @@ void TFTPTransfer::OnPacketReceived()
                 clientAddr, clientPort);
 
             emit verboseEvent(QString("Retransmitted packet %1").arg(block));
+            
+            retransmitTimer->start(retransmitInterval);
 
             if (sentSize != sendSize)
                 emit ErrorEvent("Outbound retransmitted packet truncated!");
@@ -286,11 +295,16 @@ void TFTPTransfer::OnPacketReceived()
         // Drop acknowledgements that are for wrong block
         if (header.block != block)
         {
+            // Reset retransmit timer
+            retransmitTimer->start(retransmitInterval);
+            
             emit verboseEvent("Dropped acknowledgement"
                               " for unexpected block number");
             continue;
         }
 
+        retransmitTimer->stop();
+        
         if (sendSize < sizeof(BlockHeader) + blockSize)
         {
             emit verboseEvent("Transfer completed");
@@ -320,6 +334,22 @@ void TFTPTransfer::OnPacketReceived()
 
         if (sentSize != sendSize)
             emit ErrorEvent("Outbound DATA packet truncated!");
+        
+        retransmitTimer->start(retransmitInterval);
     }
+}
+
+void TFTPTransfer::OnRetransmitTimer()
+{
+    // Retransmit current packet
+    qint64 sentSize = sock->writeDatagram(sendBuffer.data(), sendSize,
+        clientAddr, clientPort);
+
+    emit verboseEvent(QString("Retransmitted packet %1").arg(block));
+
+    if (sentSize != sendSize)
+        emit ErrorEvent("Outbound retransmitted packet truncated!");
+    
+    retransmitTimer->start(retransmitInterval);
 }
 

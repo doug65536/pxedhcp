@@ -20,6 +20,7 @@
 #include <QHostAddress>
 #include <QUdpSocket>
 #include <QFile>
+#include <QTimer>
 
 #include "tftpserver.h"
 
@@ -60,6 +61,9 @@ class TFTPTransfer : public QObject
 
     QHostAddress clientAddr;
     quint16 clientPort;
+    
+    QTimer *retransmitTimer;
+    int retransmitInterval;
 
 public:
     explicit TFTPTransfer(QObject *parent = 0);
@@ -85,6 +89,8 @@ signals:
     
 public slots:
     void OnPacketReceived();
+    
+    void OnRetransmitTimer();
 };
 
 #endif // TFTPTRANSFER_H
