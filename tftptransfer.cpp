@@ -141,7 +141,7 @@ bool TFTPTransfer::StartTransfer(QUdpSocket *,
     // Prepare OACK
     QByteArray oack;
     oack.append((char)0);
-    oack.append(OACK);
+    oack.append((char)OACK);
 
     const char *tsizeOption = TFTPServer::LookupOption(options, "tsize");
 
