@@ -182,6 +182,8 @@ bool TFTPTransfer::StartTransfer(QUdpSocket *,
     // Send OACK if we set any options
     if (oack.size() > 2)
     {
+        emit verboseEvent(QString("Sending OACK to %1").arg(blockSize));
+        
         sentSize = sock->writeDatagram(oack, addr, port);
 
         if (sentSize != oack.size())
@@ -270,7 +272,7 @@ void TFTPTransfer::OnPacketReceived()
         }
 
         // Remove spam message
-        //emit verboseEvent(QString("Received ACK for %1").arg(header.block));
+        emit verboseEvent(QString("Received ACK for %1").arg(header.block));
 
         qint64 sentSize;
 
@@ -307,8 +309,8 @@ void TFTPTransfer::OnPacketReceived()
         
         if (sendSize < sizeof(BlockHeader) + blockSize)
         {
-            emit verboseEvent("Transfer completed");
-            // Last send was partial packet, we're done
+            emit verboseEvent("Got ACK for last block, destroying transfer");
+            
             sock->close();
             deleteLater();
             return;
@@ -316,8 +318,7 @@ void TFTPTransfer::OnPacketReceived()
 
         ++block;
 
-        // Removed spam event
-        //emit verboseEvent(QString("Sending block %1").arg(block));
+        emit verboseEvent(QString("Sending block %1").arg(block));
 
         // Prepare a new send packet
         headerPtr = (BlockHeader*)sendBuffer.data();
